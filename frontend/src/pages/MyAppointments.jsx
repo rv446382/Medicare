@@ -1,14 +1,17 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AppContext } from '../context/AppContext'
-import axios from 'axios'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+
 import { toast } from 'react-toastify'
 import { assets } from '../assets/assets'
+import ChatModal from '../components/ChatModal'
+
+import api from '../services/api'
 
 const MyAppointments = () => {
-
-    const { backendUrl, token } = useContext(AppContext)
+    const user = useSelector((state) => state.user.user);
     const navigate = useNavigate()
+    const [search, setSearch] = useSearchParams();
 
     const [appointments, setAppointments] = useState([])
     const [payment, setPayment] = useState('')
@@ -24,10 +27,8 @@ const MyAppointments = () => {
     // Getting User Appointments Data Using API
     const getUserAppointments = async () => {
         try {
-
-            const { data } = await axios.get(backendUrl + '/api/user/appointments', { headers: { token } })
+            const { data } = await api.get('/user/appointments')
             setAppointments(data.appointments.reverse())
-
         } catch (error) {
             console.log(error)
             toast.error(error.message)
@@ -39,7 +40,7 @@ const MyAppointments = () => {
 
         try {
 
-            const { data } = await axios.post(backendUrl + '/api/user/cancel-appointment', { appointmentId }, { headers: { token } })
+            const { data } = await api.post('/user/cancel-appointment', { appointmentId })
 
             if (data.success) {
                 toast.success(data.message)
@@ -69,7 +70,7 @@ const MyAppointments = () => {
                 console.log(response)
 
                 try {
-                    const { data } = await axios.post(backendUrl + "/api/user/verifyRazorpay", response, { headers: { token } });
+                    const { data } = await api.post("/user/verifyRazorpay", response);
                     if (data.success) {
                         navigate('/my-appointments')
                         getUserAppointments()
@@ -87,10 +88,10 @@ const MyAppointments = () => {
     // Function to make payment using razorpay
     const appointmentRazorpay = async (appointmentId) => {
         try {
-            const { data } = await axios.post(backendUrl + '/api/user/payment-razorpay', { appointmentId }, { headers: { token } })
+            const { data } = await api.post('/user/payment-razorpay', { appointmentId })
             if (data.success) {
                 initPay(data.order)
-            }else{
+            } else {
                 toast.error(data.message)
             }
         } catch (error) {
@@ -99,37 +100,23 @@ const MyAppointments = () => {
         }
     }
 
-    // Function to make payment using stripe
-    // const appointmentStripe = async (appointmentId) => {
-    //     try {
-    //         const { data } = await axios.post(backendUrl + '/api/user/payment-stripe', { appointmentId }, { headers: { token } })
-    //         if (data.success) {
-    //             const { session_url } = data
-    //             window.location.replace(session_url)
-    //         }else{
-    //             toast.error(data.message)
-    //         }
-    //     } catch (error) {
-    //         console.log(error)
-    //         toast.error(error.message)
-    //     }
-    // }
-
-
+    const onCloseModal = useCallback(() => {
+        setSearch({})
+    }, [])
 
     useEffect(() => {
-        if (token) {
+        if (user) {
             getUserAppointments()
         }
-    }, [token])
+    }, [user])
 
     return (
         <div>
             <p className='pb-3 mt-12 text-lg font-medium text-gray-600 border-b'>My appointments</p>
             <div className=''>
-                {appointments.map((item, index) => (
-                    <div key={index} className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b'>
-                        <div>
+                {appointments.map((item) => (
+                    <div key={item._id} className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-4 border-b'>
+                        <div>+
                             <img className='w-36 bg-[#EAEFFF]' src={item.docData.image} alt="" />
                         </div>
                         <div className='flex-1 text-sm text-[#5E5E5E]'>
@@ -139,6 +126,13 @@ const MyAppointments = () => {
                             <p className=''>{item.docData.address.line1}</p>
                             <p className=''>{item.docData.address.line2}</p>
                             <p className=' mt-1'><span className='text-sm text-[#3C3C3C] font-medium'>Date & Time:</span> {slotDateFormat(item.slotDate)} |  {item.slotTime}</p>
+
+                            <button
+                                className="bg-[#EAEFFF] text-gray-600 px-12 py-3 rounded-full mt-10"
+                                onClick={() => setSearch({ 'user-id': item.docData._id })}
+                            >
+                                Chat Now
+                            </button>
                         </div>
                         <div></div>
                         <div className='flex flex-col gap-2 justify-end text-sm text-center'>
@@ -155,6 +149,9 @@ const MyAppointments = () => {
                     </div>
                 ))}
             </div>
+            {search.get('user-id') && (
+                <ChatModal onClose={onCloseModal} docId={search.get('user-id')} />
+            )}
         </div>
     )
 }
