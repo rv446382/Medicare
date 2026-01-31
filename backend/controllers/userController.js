@@ -48,9 +48,9 @@ const registerUser = async (req, res) => {
 
         const newUser = new userModel(userData)
         const user = await newUser.save()
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
+        const token = jwt.sign({ id: user._id, type: 'user' }, process.env.JWT_SECRET)
 
-        res.json({ success: true, token })
+        res.json({ success: true, token, user })
 
     } catch (error) {
         console.log(error)
@@ -72,8 +72,10 @@ const loginUser = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (isMatch) {
-            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
-            res.json({ success: true, token })
+            const token = jwt.sign({ id: user._id, type: 'user' }, process.env.JWT_SECRET);
+            // console.log({ success: true, token, id: user._id });
+            
+            res.json({ success: true, token, user });
         }
         else {
             res.json({ success: false, message: "Invalid credentials" })
@@ -106,6 +108,7 @@ const updateProfile = async (req, res) => {
 
         const { userId, name, phone, address, dob, gender } = req.body
         const imageFile = req.file
+        console.log("imageFile: ", imageFile)
 
         if (!name || !phone || !dob || !gender) {
             return res.json({ success: false, message: "Data Missing" })
@@ -113,16 +116,18 @@ const updateProfile = async (req, res) => {
 
         await userModel.findByIdAndUpdate(userId, { name, phone, address: JSON.parse(address), dob, gender })
 
+        let imageUrl;
         if (imageFile) {
+            console.log("imageFile: ", imageFile)
 
             // upload image to cloudinary
             const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" })
-            const imageURL = imageUpload.secure_url
+            const imageURL = imageUrl = imageUpload.secure_url
 
             await userModel.findByIdAndUpdate(userId, { image: imageURL })
         }
 
-        res.json({ success: true, message: 'Profile Updated' })
+        res.json({ success: true, message: 'Profile Updated', imageUrl })
 
     } catch (error) {
         console.log(error)
