@@ -12,13 +12,36 @@ const DoctorContextProvider = (props) => {
     const [dToken, setDToken] = useState(localStorage.getItem('dToken') ? localStorage.getItem('dToken') : '')
     const [appointments, setAppointments] = useState([])
     const [dashData, setDashData] = useState(false)
-    const [profileData, setProfileData] = useState(false)
+    const [profileData, setProfileData] = useState(false);
+    const [notification, setNotification] = useState([])
+
+    const addNotification = (payload) => {
+        const existingIndex = notification.findIndex(
+            (n) => n.content === payload.content && !n.isRead
+        );
+        if (existingIndex !== -1) {
+            notification.splice(existingIndex, 1);
+        }
+
+        setNotification([{
+            isRead: false,
+            content: payload.content,
+            id: Math.random().toString(32),
+            type: payload.type,
+            extra: payload.extra,
+        }, ...notification])
+    }
+
+    const updateNotifications = () => {
+        notification.forEach((n) => (n.isRead = true));
+        setNotification([...notification]);
+    }
 
     // Getting Doctor appointment data from Database using API
     const getAppointments = async () => {
         try {
 
-            const { data } = await axios.get(backendUrl + '/api/doctor/appointments', { headers: { dToken } })
+            const { data } = await axios.get(backendUrl + '/api/doctor/appointments/' + profileData._id, { headers: { dToken } })
 
             if (data.success) {
                 setAppointments(data.appointments.reverse())
@@ -120,6 +143,9 @@ const DoctorContextProvider = (props) => {
         dashData, getDashData,
         profileData, setProfileData,
         getProfileData,
+        addNotification,
+        updateNotifications,
+        notification
     }
 
     return (

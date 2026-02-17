@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import { DoctorContext } from './context/DoctorContext';
 import { AdminContext } from './context/AdminContext';
 import { Route, Routes } from 'react-router-dom'
@@ -14,11 +14,45 @@ import Login from './pages/Login';
 import DoctorAppointments from './pages/Doctor/DoctorAppointments';
 import DoctorDashboard from './pages/Doctor/DoctorDashboard';
 import DoctorProfile from './pages/Doctor/DoctorProfile';
+import { useSocket } from '../../frontend/src/context/SocketContext';
+import { useSearchParams } from 'react-router-dom'
 
 const App = () => {
+  const { emit, listen, socket } = useSocket()
+  const { dToken, profileData, getProfileData, addNotification } = useContext(DoctorContext)
+  const { aToken } = useContext(AdminContext);
 
-  const { dToken } = useContext(DoctorContext)
-  const { aToken } = useContext(AdminContext)
+  const [search] = useSearchParams();
+
+  useEffect(() => {
+    if (profileData) {
+      emit('login', profileData._id, 'doctor');
+    }
+  }, [profileData])
+
+  useEffect(() => {
+    getProfileData();
+  }, [])
+
+
+  useEffect(() => {
+    const handler = (message) => {
+      const userId = search.get('user-id');
+      if (userId != message.senderId) {
+        addNotification({
+          content: `Message from ${message.name}`,
+          type: 'message',
+          extra: message.senderId,
+        });
+      }
+    }
+
+    listen('new-message', handler);
+
+    return () => {
+      socket?.off('new-message', handler);
+    };
+  }, [search, listen, socket]);
 
   return dToken || aToken ? (
     <div className='bg-[#F8F9FD]'>

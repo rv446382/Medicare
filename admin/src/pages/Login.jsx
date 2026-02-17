@@ -3,6 +3,7 @@ import React, { useContext, useState } from 'react'
 import { DoctorContext } from '../context/DoctorContext'
 import { AdminContext } from '../context/AdminContext'
 import { toast } from 'react-toastify'
+import { useSocket } from '../../../frontend/src/context/SocketContext'
 
 const Login = () => {
 
@@ -10,7 +11,7 @@ const Login = () => {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
+  const { emit } = useSocket();
   const backendUrl = import.meta.env.VITE_BACKEND_URL
 
   const { setDToken } = useContext(DoctorContext)
@@ -25,6 +26,7 @@ const Login = () => {
       if (data.success) {
         setAToken(data.token)
         localStorage.setItem('aToken', data.token)
+
       } else {
         toast.error(data.message)
       }
@@ -32,9 +34,12 @@ const Login = () => {
     } else {
 
       const { data } = await axios.post(backendUrl + '/api/doctor/login', { email, password })
+      console.log("data", data);
+
       if (data.success) {
         setDToken(data.token)
         localStorage.setItem('dToken', data.token)
+        emit('login', data.id, 'doctor');
       } else {
         toast.error(data.message)
       }
